@@ -89,6 +89,35 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
+func handlerReset(s *state, cmd command) error {
+	//func that resets the user table
+	//this is a dangerous command and should not be used in production
+	err := s.db.ResetUsers(context.Background())
+	if err != nil {
+		fmt.Printf("could not reset users: %s", err)
+		os.Exit(1)
+	}
+	fmt.Println("users table was reset")
+	return nil
+}
+
+func handlerList(s *state, cmd command) error {
+	//func that lists all the users in the user table
+	users, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		fmt.Printf("could not get users: %s", err)
+		os.Exit(1)
+	}
+	for _, user := range users {
+		status := ""
+		if user.Name == s.config.UserName {
+			status = " (current)"
+		}
+		fmt.Printf("* %s%s\n", user.Name, status)
+	}
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -107,16 +136,15 @@ func main() {
 	cliCommands := commands{names: make(map[string]func(*state, command) error)}
 	cliCommands.register("login", handlerLogin)
 	cliCommands.register("register", handlerRegister)
+	cliCommands.register("reset", handlerReset)
+	cliCommands.register("users", handlerList)
 
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("not enough arguments were provided")
 		os.Exit(1)
 	}
-	if len(args) < 3 {
-		fmt.Println("a username is required")
-		os.Exit(1)
-	}
+
 	cliCommands.run(cliState, command{name: args[1], args: args[2:]})
 
 }
