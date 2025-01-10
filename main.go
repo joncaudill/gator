@@ -37,7 +37,7 @@ type commands struct {
 type RSSFeed struct {
 	Channel struct {
 		Title       string    `xml:"title"`
-		Link        string    `xml:"link"`
+		Link        []string  `xml:"link"`
 		Description string    `xml:"description"`
 		Item        []RSSItem `xml:"item"`
 	} `xml:"channel"`
@@ -88,17 +88,13 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read response body: %w", err)
 	}
-	fmt.Printf("raw feed: %s\n", body) // Add this line to print the raw XML
 	err = xml.Unmarshal(body, &feed)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse feed: %w", err)
 	}
-	fmt.Printf("unmarshalled feed: %+v\n", feed)          // Add this line to print the unmarshalled struct
-	fmt.Printf("link in struct: %s\n", feed.Channel.Link) // Add this line to print the link field
-	//fmt.Printf("raw feed: %s\n", body)
+
 	//unescape the HTML entities in the feed
 	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
-	//feed.Channel.Link = html.UnescapeString(feed.Channel.Link) // Add this line to unescape the link
 	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
 	for i := range feed.Channel.Item {
 		feed.Channel.Item[i].Title = html.UnescapeString(feed.Channel.Item[i].Title)
@@ -154,7 +150,7 @@ func handlerRegister(s *state, cmd command) error {
 }
 
 func handlerReset(s *state, cmd command) error {
-	//func that resets the user table
+	//func that resets the user table and feeds table
 	//this is a dangerous command and should not be used in production
 	err := s.db.ResetUsers(context.Background())
 	if err != nil {
@@ -162,7 +158,66 @@ func handlerReset(s *state, cmd command) error {
 		os.Exit(1)
 	}
 	fmt.Println("users table was reset")
+
+	err = s.db.ResetFeeds(context.Background())
+	if err != nil {
+		fmt.Printf("could not reset feeds: %s", err)
+		os.Exit(1)
+	}
+	fmt.Println("feeds table was reset")
+
 	return nil
+}
+
+func handlerAddFeed(s *state, cmd command) error {
+	//func that adds a feed to the feeds table
+	if len(cmd.args) != 2 {
+		fmt.Println("addfeed command requires 2 arguments")
+		os.Exit(1)
+	}
+
+	//since this is tied to the current user, we need to get the current user
+	user, err := getCurrentUser(s)
+	if err != nil {
+		fmt.Printf("could not get current user: %s", err)
+		os.Exit(1)
+	}
+
+	feedid := uuid.New()
+	timeNow := time.Now()
+
+	_, err = s.db.CreateFeed(context.Background(),
+		database.CreateFeedParams{ID: uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Name:      cmd.args[0],
+			Url:       cmd.args[1],
+			UserID:    user.ID})
+
+	if err != nil {
+		fmt.Printf("could not create feed: %s", err)
+		os.Exit(1)
+	}
+
+	//print the fields of the newly created feed
+	fmt.Println("feed was created.")
+	fmt.Printf("ID: %s\n", feedid)
+	fmt.Printf("Created At: %s\n", timeNow)
+	fmt.Printf("Updated At: %s\n", timeNow)
+	fmt.Printf("Name: %s\n", cmd.args[0])
+	fmt.Printf("URL: %s\n", cmd.args[1])
+	fmt.Printf("User ID: %s\n", user.ID)
+
+	return nil
+}
+
+func getCurrentUser(s *state) (database.User, error) {
+	//func that gets the current user name
+	user, err := s.db.GetUser(context.Background(), s.config.UserName)
+	if err != nil {
+		return database.User{}, fmt.Errorf("could not get user name: %w", err)
+	}
+	return user, nil
 }
 
 func handlerList(s *state, cmd command) error {
@@ -200,7 +255,7 @@ func handlerAgg(s *state, cmd command) error {
 			os.Exit(1)
 		}
 		fmt.Printf("Feed: %s\n", feed.Channel.Title)
-		fmt.Printf("Link: %s\n", feed.Channel.Link)
+		fmt.Printf("Link: %s\n", feed.Channel.Link[0])
 		fmt.Printf("Description: %s\n", feed.Channel.Description)
 		fmt.Println("Items:")
 		for _, item := range feed.Channel.Item {
@@ -234,6 +289,7 @@ func main() {
 	cliCommands.register("reset", handlerReset)
 	cliCommands.register("users", handlerList)
 	cliCommands.register("agg", handlerAgg)
+	cliCommands.register("addfeed", handlerAddFeed)
 
 	args := os.Args
 	if len(args) < 2 {
