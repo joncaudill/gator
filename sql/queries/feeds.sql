@@ -10,5 +10,9 @@ VALUES (
 )
 RETURNING *;
 
+-- name: GetFeeds :many
+SELECT * FROM feeds;
+
+
 -- name: ResetFeeds :exec
 DELETE FROM feeds;

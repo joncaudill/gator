@@ -220,6 +220,15 @@ func getCurrentUser(s *state) (database.User, error) {
 	return user, nil
 }
 
+func getUserById(s *state, id uuid.UUID) (database.User, error) {
+	//func that gets the user by the user id
+	user, err := s.db.GetUserById(context.Background(), id)
+	if err != nil {
+		return database.User{}, fmt.Errorf("could not get user by id: %w", err)
+	}
+	return user, nil
+}
+
 func handlerList(s *state, cmd command) error {
 	//func that lists all the users in the user table
 	users, err := s.db.GetUsers(context.Background())
@@ -268,6 +277,26 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
+func handlerFeeds(s *state, cmd command) error {
+	//func that lists all the feeds in the feeds table
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		fmt.Printf("could not get feeds: %s", err)
+		os.Exit(1)
+	}
+	for _, feed := range feeds {
+		fmt.Printf("*Feed Name: %s\n", feed.Name)
+		fmt.Printf("Feed URL:  %s\n", feed.Url)
+		feedUser, err := getUserById(s, feed.UserID)
+		if err != nil {
+			fmt.Printf("could not get user by id: %s", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Created By: %s\n", feedUser.Name)
+	}
+	return nil
+}
+
 func main() {
 	cfg, err := config.Read()
 	if err != nil {
@@ -290,6 +319,7 @@ func main() {
 	cliCommands.register("users", handlerList)
 	cliCommands.register("agg", handlerAgg)
 	cliCommands.register("addfeed", handlerAddFeed)
+	cliCommands.register("feeds", handlerFeeds)
 
 	args := os.Args
 	if len(args) < 2 {
