@@ -113,6 +113,10 @@ func handlerAgg(s *state, cmd command) error {
 
 	time_between_reqs := cmd.args[0]
 	ticker_duration, err := time.ParseDuration(time_between_reqs)
+	ticker_min, _ := time.ParseDuration("10m")
+	if ticker_duration < ticker_min {
+		ticker_duration = ticker_min
+	}
 	if err != nil {
 		return fmt.Errorf("could not parse time duration: %w", err)
 	}
