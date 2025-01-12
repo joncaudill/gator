@@ -7,6 +7,11 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/joncaudill/gator/internal/database"
 )
 
 func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
@@ -71,7 +76,30 @@ func scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range feedRSS.Channel.Item {
-		fmt.Printf("  * %s\n", item.Title)
+		//fmt.Printf("  * %s\n", item.Title)
+		publishedAt, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			return fmt.Errorf("could not parse time: %w", err)
+		}
+		if item.Title == "" {
+			item.Title = "No Title"
+		}
+		_, err = s.db.CreatePost(context.Background(),
+			database.CreatePostParams{ID: uuid.New(),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Title:       item.Title,
+				Url:         item.Link,
+				Description: item.Description,
+				PublishedAt: publishedAt,
+				FeedID:      feed.ID,
+			})
+		if err != nil {
+			if !strings.Contains(err.Error(), "duplicate key") {
+				fmt.Printf("could not create feed item: %s", err)
+			}
+		}
+
 	}
 
 	return nil

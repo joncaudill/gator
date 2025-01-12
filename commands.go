@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -299,6 +300,45 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 	fmt.Println("Following:")
 	for _, follow := range follows {
 		fmt.Printf("* %s\n", follow.FeedName)
+	}
+
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	//func that takes a limit parameter and lists all the posts in the posts table
+	//that the current user is following, limited by the limit parameter
+
+	if len(cmd.args) == 0 {
+		cmd.args = append(cmd.args, "2")
+	}
+
+	limit, err := strconv.Atoi(cmd.args[0])
+	if err != nil {
+		limit = 2
+	}
+
+	posts, err := s.db.GetPostsForUser(context.Background(),
+		database.GetPostsForUserParams{UserID: user.ID,
+			Limit: int32(limit),
+		})
+
+	if err != nil {
+		fmt.Printf("could not get posts for user: %s", err)
+		os.Exit(1)
+	}
+
+	if len(posts) == 0 {
+		fmt.Println("No posts to display.")
+		return nil
+	}
+
+	fmt.Println("Posts:")
+	for _, post := range posts {
+		fmt.Printf("* %s\n", post.Title)
+		fmt.Printf("  %s\n", post.Url)
+		fmt.Printf("  %s\n", post.Description)
+		fmt.Printf("  %s\n", post.PublishedAt)
 	}
 
 	return nil

@@ -52,6 +52,9 @@ func (c *commands) register(name string, f func(*state, command) error) {
 
 func (c *commands) run(s *state, cmd command) error {
 	//runs a given command with the state passed into the func
+	if _, ok := c.names[cmd.name]; !ok {
+		return fmt.Errorf("command not found: %s", cmd.name)
+	}
 	err := c.names[cmd.name](s, cmd)
 	if err != nil {
 		return fmt.Errorf("could not run command: %w", err)
@@ -114,6 +117,7 @@ func main() {
 	cliCommands.register("follow", middlewareLoggedIn(handlerAddFollow))
 	cliCommands.register("following", middlewareLoggedIn(handlerFollowing))
 	cliCommands.register("unfollow", middlewareLoggedIn(handlerDeleteFollow))
+	cliCommands.register("posts", middlewareLoggedIn(handlerBrowse))
 
 	args := os.Args
 	if len(args) < 2 {
