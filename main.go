@@ -103,6 +103,17 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	return &feed, nil
 }
 
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(s *state, cmd command) error {
+	//middleware that checks if the user is logged in
+	return func(s *state, cmd command) error {
+		user, err := getCurrentUser(s)
+		if err != nil {
+			return fmt.Errorf("could not get current user: %w", err)
+		}
+		return handler(s, cmd, user)
+	}
+}
+
 func getCurrentUser(s *state) (database.User, error) {
 	//func that gets the current user name
 	user, err := s.db.GetUser(context.Background(), s.config.UserName)
