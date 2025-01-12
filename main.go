@@ -157,6 +157,7 @@ func main() {
 	cliCommands.register("feeds", handlerFeeds)
 	cliCommands.register("follow", middlewareLoggedIn(handlerAddFollow))
 	cliCommands.register("following", middlewareLoggedIn(handlerFollowing))
+	cliCommands.register("unfollow", middlewareLoggedIn(handlerDeleteFollow))
 
 	args := os.Args
 	if len(args) < 2 {

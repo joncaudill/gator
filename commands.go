@@ -231,6 +231,34 @@ func handlerAddFollow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+func handlerDeleteFollow(s *state, cmd command, user database.User) error {
+	//func that deletes a follow from the feed follows table
+	if len(cmd.args) == 0 {
+		fmt.Println("deletefollow command requires 1 argument")
+		os.Exit(1)
+	}
+
+	feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
+	if err != nil {
+		fmt.Printf("could not get feed by URL: %s", err)
+		os.Exit(1)
+	}
+
+	err = s.db.DeleteFeedFollow(context.Background(),
+		database.DeleteFeedFollowParams{UserID: user.ID,
+			FeedID: feed.ID,
+		})
+
+	if err != nil {
+		fmt.Printf("could not delete feed follow: %s", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Unfollowed feed: %s\n", feed.Name)
+
+	return nil
+}
+
 func handlerFollowing(s *state, cmd command, user database.User) error {
 	//func that lists all the feeds that the current user is following
 
@@ -238,6 +266,11 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 	if err != nil {
 		fmt.Printf("could not get feed follows by user: %s", err)
 		os.Exit(1)
+	}
+
+	if len(follows) == 0 {
+		fmt.Println("No feeds are being followed.")
+		return nil
 	}
 
 	fmt.Println("Following:")
