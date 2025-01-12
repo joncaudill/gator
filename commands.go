@@ -130,17 +130,10 @@ func handlerAgg(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command, user database.User) error {
 	//func that adds a feed to the feeds table
 	if len(cmd.args) != 2 {
 		fmt.Println("addfeed command requires 2 arguments")
-		os.Exit(1)
-	}
-
-	//since this is tied to the current user, we need to get the current user
-	user, err := getCurrentUser(s)
-	if err != nil {
-		fmt.Printf("could not get current user: %s", err)
 		os.Exit(1)
 	}
 
@@ -206,7 +199,7 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddFollow(s *state, cmd command) error {
+func handlerAddFollow(s *state, cmd command, user database.User) error {
 	//func that adds a follow to the feed follows table
 	if len(cmd.args) == 0 {
 		fmt.Println("addfollow command requires 1 argument")
@@ -216,12 +209,6 @@ func handlerAddFollow(s *state, cmd command) error {
 	feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
 	if err != nil {
 		fmt.Printf("could not get feed by URL: %s", err)
-		os.Exit(1)
-	}
-
-	user, err := getCurrentUser(s)
-	if err != nil {
-		fmt.Printf("could not get current user: %s", err)
 		os.Exit(1)
 	}
 
@@ -244,13 +231,8 @@ func handlerAddFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	//func that lists all the feeds that the current user is following
-	user, err := getCurrentUser(s)
-	if err != nil {
-		fmt.Printf("could not get current user: %s", err)
-		os.Exit(1)
-	}
 
 	follows, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
