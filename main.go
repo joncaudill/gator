@@ -3,12 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/xml"
 	"fmt"
-	"html"
 	"internal/config"
-	"io"
-	"net/http"
 	"os"
 
 	"github.com/google/uuid"
@@ -61,46 +57,6 @@ func (c *commands) run(s *state, cmd command) error {
 		return fmt.Errorf("could not run command: %w", err)
 	}
 	return nil
-}
-
-func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
-	//fetches a given RSS feed from a URL
-	request, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("could not create request: %w", err)
-	}
-
-	//set the request headers
-	request.Header.Set("User-Agent", "gator-cli")
-
-	//use client with the context
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch feed: %w", err)
-	}
-	defer response.Body.Close()
-
-	//parse the response body
-	var feed RSSFeed
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("could not read response body: %w", err)
-	}
-	err = xml.Unmarshal(body, &feed)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse feed: %w", err)
-	}
-
-	//unescape the HTML entities in the feed
-	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
-	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
-	for i := range feed.Channel.Item {
-		feed.Channel.Item[i].Title = html.UnescapeString(feed.Channel.Item[i].Title)
-		feed.Channel.Item[i].Description = html.UnescapeString(feed.Channel.Item[i].Description)
-	}
-
-	return &feed, nil
 }
 
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(s *state, cmd command) error {

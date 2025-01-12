@@ -104,30 +104,53 @@ func handlerAgg(s *state, cmd command) error {
 
 	//the fake feed URL is used for testing
 	//remove in production
-	cmd.args = []string{"https://www.wagslane.dev/index.xml"}
+	//cmd.args = []string{"https://www.wagslane.dev/index.xml"}
 
 	if len(cmd.args) == 0 {
 		return fmt.Errorf("agg command requires 1 or more arguments")
 	}
 
-	for _, feedURL := range cmd.args {
-		feed, err := fetchFeed(context.Background(), feedURL)
+	time_between_reqs := cmd.args[0]
+	ticker_duration, err := time.ParseDuration(time_between_reqs)
+	if err != nil {
+		return fmt.Errorf("could not parse time duration: %w", err)
+	}
+
+	fmt.Printf("Collecting feeds every %s\n", ticker_duration)
+
+	//do an initial scrape of the feeds	before starting the ticker
+	err = scrapeFeeds(s)
+	if err != nil {
+		return fmt.Errorf("could not scrape feeds: %w", err)
+	}
+
+	ticker := time.NewTicker(ticker_duration)
+	for ; ; <-ticker.C {
+		err := scrapeFeeds(s)
 		if err != nil {
-			fmt.Printf("could not fetch feed: %s", err)
-			os.Exit(1)
-		}
-		fmt.Printf("Feed: %s\n", feed.Channel.Title)
-		fmt.Printf("Link: %s\n", feed.Channel.Link[0])
-		fmt.Printf("Description: %s\n", feed.Channel.Description)
-		fmt.Println("Items:")
-		for _, item := range feed.Channel.Item {
-			fmt.Printf("  * %s\n", item.Title)
-			fmt.Printf("    %s\n", item.Link)
-			fmt.Printf("    %s\n", item.Description)
-			fmt.Printf("    %s\n", item.PubDate)
+			return fmt.Errorf("could not scrape feeds: %w", err)
 		}
 	}
-	return nil
+
+	// old code used to test feed aggregation -- TODO remove eventually
+	// for _, feedURL := range cmd.args {
+	// 	feed, err := fetchFeed(context.Background(), feedURL)
+	// 	if err != nil {
+	// 		fmt.Printf("could not fetch feed: %s", err)
+	// 		os.Exit(1)
+	// 	}
+	// 	fmt.Printf("Feed: %s\n", feed.Channel.Title)
+	// 	fmt.Printf("Link: %s\n", feed.Channel.Link[0])
+	// 	fmt.Printf("Description: %s\n", feed.Channel.Description)
+	// 	fmt.Println("Items:")
+	// 	for _, item := range feed.Channel.Item {
+	// 		fmt.Printf("  * %s\n", item.Title)
+	// 		fmt.Printf("    %s\n", item.Link)
+	// 		fmt.Printf("    %s\n", item.Description)
+	// 		fmt.Printf("    %s\n", item.PubDate)
+	// 	}
+	// }
+	// return nil
 }
 
 func handlerAddFeed(s *state, cmd command, user database.User) error {
